@@ -1,38 +1,35 @@
 #include <chrono>
 #include <rclcpp/rclcpp.hpp>
-#include <mavros_msgs/msg/gpsinput.hpp>
+#include <sensor_msgs/msg/range.hpp>
 
 class GPSInjector : public rclcpp::Node
 {
 public:
     GPSInjector() : Node("gps_injector")
     {
-    gps_publisher_ = this->create_publisher<mavros_msgs::msg::GPSINPUT>("/mavros/gps_input/gps_input", 10);
+    range_publisher_ = this->create_publisher<sensor_msgs::msg::Range>("/mavros/rangefinder_sub", 10);
 
-    gps_publish_timer_ = this->create_wall_timer(
+    range_publish_timer_ = this->create_wall_timer(
         std::chrono::milliseconds(100),
-        std::bind(&GPSInjector::publish_gps, this));
+        std::bind(&GPSInjector::publish_range, this));
     }
 
-    void publish_gps(){
-        mavros_msgs::msg::GPSINPUT gps_input;
-        gps_input.fix_type = mavros_msgs::msg::GPSINPUT::GPS_FIX_TYPE_3D_FIX;
-        gps_input.lat = 77.0000;
-        gps_input.lon = 50.0001;
-        gps_input.alt = -1.0;
-        gps_input.hdop = 0.00001;
-        gps_input.vdop = 0.00001;
-        gps_input.yaw = 90;
-
-        gps_publisher_->publish(gps_input);
+    void publish_range(){
+        sensor_msgs::msg::Range range;
+        range.radiation_type = 0;
+        range.min_range = 0.0f;
+        range.max_range = 10.0f;
+        range.range = 1.0f;
+        range.field_of_view = 3.14;
         
-        //gps_input.GPS_FIX_TYPE = mavros_msgs::msg::GPSINPUT::GPS_FIX_TYPE_3D_FIX;
+        range_publisher_->publish(range);
+        
     
 
     }
 
 private:
-rclcpp::Publisher<mavros_msgs::msg::GPSINPUT>::SharedPtr gps_publisher_;
-rclcpp::TimerBase::SharedPtr gps_publish_timer_;
+rclcpp::Publisher<sensor_msgs::msg::Range>::SharedPtr range_publisher_;
+rclcpp::TimerBase::SharedPtr range_publish_timer_;
 
 };
