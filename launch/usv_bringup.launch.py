@@ -22,7 +22,8 @@ mavlink_routerd = ExecuteProcess(
 
 #For using Ardupilot DDS
 micro_ros_agent = ExecuteProcess(
-    cmd=["ros2", "run", "micro_ros_agent", "micro_ros_agent" ,"serial", "-D,","/dev/ttyUSB0","-b,","115200"]
+    #cmd=["ros2","run","micro_ros_agent","micro_ros_agent","serial","-D,","/dev/ttyUSB0","-b","115200"],
+    cmd=["ros2 run micro_ros_agent micro_ros_agent serial -D /dev/ttyUSB0 -b 115200"],
     output="screen",
     shell=True
 )
@@ -37,15 +38,15 @@ def generate_launch_description():
         "fcu_url": LaunchConfiguration("fcu_url")
     }.items()
     )
-    # Give mavlink-routerd some time:
+    # Give mavros some time:
     delayed_mavros_launch = TimerAction(
         period=5.0,
         actions=[mavros_launch]
     )
    
     return LaunchDescription([
-        micro_ros_agent,
         qgc_ip_arg,
+        micro_ros_agent,
         fcu_url_arg,
         mavlink_routerd,
         delayed_mavros_launch
