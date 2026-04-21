@@ -15,15 +15,14 @@ qgc_ip_arg = DeclareLaunchArgument("qgc_ip",default_value="127.0.0.1:14560")
 
 #Mavros could be used for the same purpose, but it is much slower
 mavlink_routerd = ExecuteProcess(
-    cmd=["mavlink-routerd", "-e", "127.0.0.1", "-e", LaunchConfiguration("qgc_ip"), "/dev/ttyACM0"],
+    cmd=["mavlink-routerd","-e", "127.0.0.1", "-e", LaunchConfiguration("qgc_ip"), "/dev/ttyACM0"],
     output='screen',
     shell=True
 )
 
 #For using Ardupilot DDS
 micro_ros_agent = ExecuteProcess(
-    #cmd=["ros2","run","micro_ros_agent","micro_ros_agent","serial","-D,","/dev/ttyUSB0","-b","115200"],
-    cmd=["ros2 run micro_ros_agent micro_ros_agent serial -D /dev/ttyUSB0 -b 115200"],
+    cmd=["ros2 run micro_ros_agent micro_ros_agent serial -D /dev/ttyUSB0 -b 1500000"],
     output="screen",
     shell=True
 )
@@ -40,14 +39,14 @@ def generate_launch_description():
     )
     # Give mavros some time:
     delayed_mavros_launch = TimerAction(
-        period=5.0,
+        period=7.0,
         actions=[mavros_launch]
     )
    
     return LaunchDescription([
         qgc_ip_arg,
         micro_ros_agent,
-        fcu_url_arg,
+       fcu_url_arg,
         mavlink_routerd,
-        delayed_mavros_launch
+       delayed_mavros_launch
     ])
