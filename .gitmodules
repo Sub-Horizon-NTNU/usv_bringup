@@ -1,0 +1,18 @@
+[submodule "environment_estimator"]
+	path = environment_estimator
+	url = git@github.com:Sub-Horizon-NTNU/environment_estimator.git
+[submodule "usv_controller"]
+	path = usv_controller
+	url = git@github.com:Sub-Horizon-NTNU/usv_controller.git
+[submodule "transform_broadcaster"]
+	path = transform_broadcaster
+	url = git@github.com:Sub-Horizon-NTNU/transform_broadcaster.git
+[submodule "object_msgs"]
+	path = object_msgs
+	url = git@github.com:Sub-Horizon-NTNU/object_msgs.git
+[submodule "waypoint_msgs"]
+	path = waypoint_msgs
+	url = git@github.com:Sub-Horizon-NTNU/waypoint_msgs.git
+[submodule "usv_object_detector"]
+	path = usv_object_detector
+	url = git@github.com:Sub-Horizon-NTNU/usv_object_detector.git
