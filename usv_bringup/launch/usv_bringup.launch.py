@@ -67,17 +67,19 @@ environment_estimator_launch_list = [
 
 
 # USV controller launch list############################################################################################################
-yaw_kp_arg = DeclareLaunchArgument("yaw_kp", default_value="1.1", description="Yaw angular velocity controller Kp")
-yaw_ki_arg = DeclareLaunchArgument("yaw_ki", default_value="0.4", description="Yaw angular velocity controller Ki")
-yaw_kd_arg = DeclareLaunchArgument("yaw_kd", default_value="0.1", description="Yaw angular velocity controller Kd")
 
-lin_kp_arg = DeclareLaunchArgument("lin_kp", default_value="1.0", description="Linear velocity controller Kp")
-lin_ki_arg = DeclareLaunchArgument("lin_ki", default_value="0.0", description="Linear velocity controller Ki")
-lin_kd_arg = DeclareLaunchArgument("lin_kd", default_value="0.0", description="Linear velocity controller Kd")
+yaw_kp_arg = DeclareLaunchArgument("yaw_kp", default_value="1.1",description="Yaw angular velocity controller Kp")
+yaw_ki_arg = DeclareLaunchArgument("yaw_ki", default_value="0.1",description="Yaw angular velocity controller Ki")
+yaw_kd_arg = DeclareLaunchArgument("yaw_kd", default_value="0.1",description="Yaw angular velocity controller Kd")
 
-max_linear_velocity_arg = DeclareLaunchArgument("max_linear_velocity", default_value="5.0", description="Maximum linear velocity [m/s]")
-max_angular_velocity_arg = DeclareLaunchArgument("max_angular_velocity", default_value="2.0", description="Maximum angular velocity [rad/s]")
-braking_radius_arg = DeclareLaunchArgument("braking_radius", default_value="3.0", description="Distance away from position hold waypoint to start braking [m]")
+lin_kp_arg = DeclareLaunchArgument("lin_kp", default_value="1.0",description="Linear velocity controller Kp")
+lin_ki_arg = DeclareLaunchArgument("lin_ki", default_value="0.1",description="Linear velocity controller Ki")
+lin_kd_arg = DeclareLaunchArgument("lin_kd", default_value="0.1",description="Linear velocity controller Kd")
+
+max_linear_velocity_arg = DeclareLaunchArgument("max_linear_velocity", default_value="5.0",description="Maximum linear velocity [m/s]")
+max_angular_velocity_arg = DeclareLaunchArgument("max_angular_velocity",default_value="2.0",description="Maximum angular velocity [rad/s]")
+lookahead_distance_arg = DeclareLaunchArgument("lookahead_distance", default_value="3.0", description="Distance on path too navigate towards [m]")
+heading_reference_filter_arg = DeclareLaunchArgument("heading_reference_filter", default_value="0.5", description="Distance on path too navigate towards [m]")
 
 
 usv_controller_launch = IncludeLaunchDescription(
@@ -93,7 +95,8 @@ usv_controller_launch = IncludeLaunchDescription(
         "lin_kd": LaunchConfiguration("lin_kd"),
         "max_linear_velocity": LaunchConfiguration("max_linear_velocity"),
         "max_angular_velocity": LaunchConfiguration("max_angular_velocity"),
-        "braking_radius": LaunchConfiguration("braking_radius"),
+        "lookahead_distance": LaunchConfiguration("lookahead_distance"),
+        "heading_reference_filter" : LaunchConfiguration("heading_reference_filter")
     }.items(),
 )
 
@@ -106,8 +109,9 @@ usv_controller_launch_list = [
     lin_kd_arg,
     max_linear_velocity_arg,
     max_angular_velocity_arg,
-    braking_radius_arg,
-    usv_controller_launch,
+    lookahead_distance_arg,
+    heading_reference_filter_arg,
+    usv_controller_launch
 ]
 ###################################################################################################
 
@@ -166,7 +170,7 @@ mavros_ardupilot_dds_launch_list = [
 launch_list = (
     transform_broadcaster_launch_list +
     environment_estimator_launch_list +
-    usv_controller_launch_list +
+    #usv_controller_launch_list +
     mavros_ardupilot_dds_launch_list
 )
 
