@@ -12,6 +12,7 @@ from launch_xml.launch_description_sources import XMLLaunchDescriptionSource
 transform_broadcaster_dir = get_package_share_directory("transform_broadcaster")
 environment_estimator_dir = get_package_share_directory("environment_estimator")
 usv_controller_dir = get_package_share_directory("usv_controller")
+usv_object_detector_dir = get_package_share_directory("usv_object_detector")
 
 mavros_dir = get_package_share_directory("mavros")
 
@@ -97,9 +98,8 @@ usv_controller_launch = IncludeLaunchDescription(
         "max_angular_velocity": LaunchConfiguration("max_angular_velocity"),
         "lookahead_distance": LaunchConfiguration("lookahead_distance"),
         "heading_reference_filter" : LaunchConfiguration("heading_reference_filter")
-    }.items(),
-    condition=UnlessCondition(LaunchConfiguration("simulator_mode"))
-)
+    }.items()
+    )
 
 usv_controller_launch_list = [
     yaw_kp_arg,
@@ -123,17 +123,19 @@ model_arg = DeclareLaunchArgument('model',default_value='best.onnx',description=
 
 usv_object_detector_launch = IncludeLaunchDescription(
     PythonLaunchDescriptionSource(
-        PathJoinSubstitution([usv_controller_dir, "launch/usv_object_detector.launch.py"])
+        PathJoinSubstitution([usv_object_detector_dir, "launch/usv_object_detector.launch.py"])
     ),
     launch_arguments={
         "publish_image":LaunchConfiguration("publish_image"),
         "model":LaunchConfiguration("model")
     }.items(),
+    condition=UnlessCondition(LaunchConfiguration("simulator_mode"))
+
 )
 
 usv_object_detector_launch_list = [
-    publish_image_arg +
-    model_arg + 
+    publish_image_arg,
+    model_arg,
     usv_object_detector_launch
 ]
 
@@ -193,8 +195,8 @@ launch_list = (
     transform_broadcaster_launch_list +
     environment_estimator_launch_list +
     usv_controller_launch_list +
-    mavros_ardupilot_dds_launch_list +
-    usv_object_detector_launch_list
+    mavros_ardupilot_dds_launch_list
+    #usv_object_detector_launch_list
 )
 
 
