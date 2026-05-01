@@ -98,6 +98,7 @@ usv_controller_launch = IncludeLaunchDescription(
         "lookahead_distance": LaunchConfiguration("lookahead_distance"),
         "heading_reference_filter" : LaunchConfiguration("heading_reference_filter")
     }.items(),
+    condition=UnlessCondition(LaunchConfiguration("simulator_mode"))
 )
 
 usv_controller_launch_list = [
@@ -114,6 +115,27 @@ usv_controller_launch_list = [
     usv_controller_launch
 ]
 ###################################################################################################
+
+## Object detector
+
+publish_image_arg = DeclareLaunchArgument('publish_image',default_value='false',description='Publish images to topic selene/object_detector/image | <true/false>')
+model_arg = DeclareLaunchArgument('model',default_value='best.onnx',description='Select which model to use. e.g: best.onnx')
+
+usv_object_detector_launch = IncludeLaunchDescription(
+    PythonLaunchDescriptionSource(
+        PathJoinSubstitution([usv_controller_dir, "launch/usv_object_detector.launch.py"])
+    ),
+    launch_arguments={
+        "publish_image":LaunchConfiguration("publish_image"),
+        "model":LaunchConfiguration("model")
+    }.items(),
+)
+
+usv_object_detector_launch_list = [
+    publish_image_arg +
+    model_arg + 
+    usv_object_detector_launch
+]
 
 
 
@@ -170,8 +192,9 @@ mavros_ardupilot_dds_launch_list = [
 launch_list = (
     transform_broadcaster_launch_list +
     environment_estimator_launch_list +
-    #usv_controller_launch_list +
-    mavros_ardupilot_dds_launch_list
+    usv_controller_launch_list +
+    mavros_ardupilot_dds_launch_list +
+    usv_object_detector_launch_list
 )
 
 
