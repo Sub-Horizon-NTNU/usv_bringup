@@ -98,16 +98,10 @@ usv_controller_launch = IncludeLaunchDescription(
         "max_linear_velocity": LaunchConfiguration("max_linear_velocity"),
         "max_angular_velocity": LaunchConfiguration("max_angular_velocity"),
         "lookahead_distance": LaunchConfiguration("lookahead_distance"),
-<<<<<<< HEAD
-        "heading_reference_filter" : LaunchConfiguration("heading_reference_filter")
-    }.items()
-    )
-=======
         "heading_reference_filter" : LaunchConfiguration("heading_reference_filter"),
         "initial_heading": LaunchConfiguration("initial_heading")
     }.items()
 )
->>>>>>> f749ff6 (added heading parameter)
 
 usv_controller_launch_list = [
     initial_heading_arg,
