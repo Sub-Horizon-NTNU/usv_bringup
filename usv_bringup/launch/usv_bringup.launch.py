@@ -69,6 +69,7 @@ environment_estimator_launch_list = [
 
 # USV controller launch list############################################################################################################
 
+initial_heading_arg = DeclareLaunchArgument("initial_heading", default_value="0.0", description="Initial heading in degrees (0=North, 90=East, 180=South, 270=West)")
 yaw_kp_arg = DeclareLaunchArgument("yaw_kp", default_value="1.1",description="Yaw angular velocity controller Kp")
 yaw_ki_arg = DeclareLaunchArgument("yaw_ki", default_value="0.1",description="Yaw angular velocity controller Ki")
 yaw_kd_arg = DeclareLaunchArgument("yaw_kd", default_value="0.1",description="Yaw angular velocity controller Kd")
@@ -97,11 +98,19 @@ usv_controller_launch = IncludeLaunchDescription(
         "max_linear_velocity": LaunchConfiguration("max_linear_velocity"),
         "max_angular_velocity": LaunchConfiguration("max_angular_velocity"),
         "lookahead_distance": LaunchConfiguration("lookahead_distance"),
+<<<<<<< HEAD
         "heading_reference_filter" : LaunchConfiguration("heading_reference_filter")
     }.items()
     )
+=======
+        "heading_reference_filter" : LaunchConfiguration("heading_reference_filter"),
+        "initial_heading": LaunchConfiguration("initial_heading")
+    }.items()
+)
+>>>>>>> f749ff6 (added heading parameter)
 
 usv_controller_launch_list = [
+    initial_heading_arg,
     yaw_kp_arg,
     yaw_ki_arg,
     yaw_kd_arg,
@@ -195,7 +204,11 @@ launch_list = (
     transform_broadcaster_launch_list +
     environment_estimator_launch_list +
     usv_controller_launch_list +
+<<<<<<< HEAD
     mavros_ardupilot_dds_launch_list
+=======
+    mavros_ardupilot_dds_launch_list #+
+>>>>>>> f749ff6 (added heading parameter)
     #usv_object_detector_launch_list
 )
 
