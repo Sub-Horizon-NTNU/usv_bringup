@@ -198,11 +198,7 @@ launch_list = (
     transform_broadcaster_launch_list +
     environment_estimator_launch_list +
     usv_controller_launch_list +
-<<<<<<< HEAD
-    mavros_ardupilot_dds_launch_list
-=======
     mavros_ardupilot_dds_launch_list #+
->>>>>>> f749ff6 (added heading parameter)
     #usv_object_detector_launch_list
 )
 
