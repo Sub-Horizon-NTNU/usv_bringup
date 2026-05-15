@@ -81,7 +81,7 @@ max_linear_velocity_arg = DeclareLaunchArgument("max_linear_velocity", default_v
 max_angular_velocity_arg = DeclareLaunchArgument("max_angular_velocity",default_value="2.0",description="Maximum angular velocity [rad/s]")
 lookahead_distance_arg = DeclareLaunchArgument("lookahead_distance", default_value="0.5", description="Distance on path too navigate towards [m]")
 heading_reference_filter_arg = DeclareLaunchArgument("heading_reference_filter", default_value="0.5", description="Distance on path too navigate towards [m]")
-
+initial_heading_arg = DeclareLaunchArgument("initial_heading", default_value="0.0", description="Initial heading in degrees (0=North, 90=East, 180=South, 270=West)")
 
 usv_controller_launch = IncludeLaunchDescription(
     PythonLaunchDescriptionSource(
