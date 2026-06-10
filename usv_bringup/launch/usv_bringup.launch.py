@@ -3,18 +3,15 @@ from launch import LaunchDescription
 from ament_index_python.packages import get_package_share_directory
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction, ExecuteProcess, RegisterEventHandler
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.conditions import UnlessCondition
+from launch.conditions import UnlessCondition, IfCondition
 from launch.actions import ExecuteProcess
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_xml.launch_description_sources import XMLLaunchDescriptionSource
 
 ### Nodes:
 transform_broadcaster_dir = get_package_share_directory("transform_broadcaster")
 environment_estimator_dir = get_package_share_directory("environment_estimator")
 usv_controller_dir = get_package_share_directory("usv_controller")
 usv_object_detector_dir = get_package_share_directory("usv_object_detector")
-
-mavros_dir = get_package_share_directory("mavros")
 
 # transform broadcaster####################################################################################################################
 camera_offset_x_arg = DeclareLaunchArgument('camera_offset_x',default_value='0.0',description='camera coordinates (left) relative to USV NED')
@@ -142,49 +139,57 @@ usv_object_detector_launch_list = [
 ]
 
 
-# MAVROS AND ArduPilot DDS #################################################
+# PX4 uXRCE-DDS bridge #####################################################
+# PX4 replaces ArduPilot: no MAVROS, no mavlink-router. The only autopilot link
+# is the uXRCE-DDS bridge (px4_msgs /fmu/* topics). Per selene.params the bridge
+# runs on the CubeOrange+ TELEM2 port @ 921600 (UXRCE_DDS_CFG=102); the companion
+# serial device for TELEM2 is exposed below as a launch arg.
 
+px4_agent_cmd_arg = DeclareLaunchArgument(
+    "px4_agent_cmd", default_value="MicroXRCEAgent",
+    description="uXRCE-DDS agent binary name (snap may install it as 'micro-xrce-dds-agent')")
+px4_serial_dev_arg = DeclareLaunchArgument(
+    "px4_serial_dev", default_value="/dev/ttyUSB0",
+    description="Companion-side serial device for the PX4 TELEM2 uXRCE-DDS link")
+px4_serial_baud_arg = DeclareLaunchArgument(
+    "px4_serial_baud", default_value="921600",
+    description="Baud for the PX4 uXRCE-DDS serial link (must match SER_TEL2_BAUD)")
 
-#
-qgc_ip_arg = DeclareLaunchArgument("qgc_ip",default_value="127.0.0.1:14560")
-#Mavros could be used for the same purpose, but it is much slower
-mavlink_routerd = ExecuteProcess(
-    cmd=["mavlink-routerd","-e", "127.0.0.1", "-e", LaunchConfiguration("qgc_ip"), "/dev/ttyACM0"],
-    output='screen',
-    shell=True,
-    condition=UnlessCondition(LaunchConfiguration("simulator_mode"))
-)
-#For using Ardupilot DDS
-micro_ros_agent = ExecuteProcess(
-    cmd=["ros2 run micro_ros_agent micro_ros_agent serial -D /dev/ttyUSB0 -b 1500000"],
+micro_xrce_agent = ExecuteProcess(
+    cmd=[LaunchConfiguration("px4_agent_cmd"),
+         " serial --dev ",
+         LaunchConfiguration("px4_serial_dev"),
+         " -b ",
+         LaunchConfiguration("px4_serial_baud")],
     output="screen",
     shell=True,
     condition=UnlessCondition(LaunchConfiguration("simulator_mode"))
 )
 
-fcu_url_arg = DeclareLaunchArgument("fcu_url",default_value="udp://127.0.0.1:14550@14555")
-mavros_launch = IncludeLaunchDescription(
-XMLLaunchDescriptionSource(
-    PathJoinSubstitution([mavros_dir, "launch/apm.launch"])
-),
-launch_arguments={
-    "fcu_url": LaunchConfiguration("fcu_url")
-}.items(),
-condition=UnlessCondition(LaunchConfiguration("simulator_mode"))
+px4_dds_launch_list = [
+    px4_agent_cmd_arg,
+    px4_serial_dev_arg,
+    px4_serial_baud_arg,
+    micro_xrce_agent,
+]
+#######################################################
+
+# Joystick teleop (manual override) ########################################
+manual_control_arg = DeclareLaunchArgument(
+    "manual_control", default_value="true",
+    description="Launch the joystick teleop for manual override of the USV")
+
+usv_teleop_dir = get_package_share_directory("usv_teleop")
+usv_teleop_launch = IncludeLaunchDescription(
+    PythonLaunchDescriptionSource(
+        PathJoinSubstitution([usv_teleop_dir, "launch/usv_teleop.launch.py"])
+    ),
+    condition=IfCondition(LaunchConfiguration("manual_control"))
 )
 
-# Give mavros some time:
-delayed_mavros_launch = TimerAction(
-    period=7.0,
-    actions=[mavros_launch]
-)
-
-mavros_ardupilot_dds_launch_list = [
-    qgc_ip_arg,
-    micro_ros_agent,
-    fcu_url_arg,
-    mavlink_routerd,
-    delayed_mavros_launch
+usv_teleop_launch_list = [
+    manual_control_arg,
+    usv_teleop_launch,
 ]
 #######################################################
 
@@ -194,7 +199,8 @@ launch_list = (
     transform_broadcaster_launch_list +
     environment_estimator_launch_list +
     usv_controller_launch_list +
-    mavros_ardupilot_dds_launch_list #+
+    px4_dds_launch_list +
+    usv_teleop_launch_list #+
     #usv_object_detector_launch_list
 )
 
