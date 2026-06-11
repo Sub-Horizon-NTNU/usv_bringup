@@ -8,10 +8,9 @@ from launch.actions import ExecuteProcess
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 
-### Nodes:
+### Nodes (BOAT side only — usv_controller runs on the PC, not resolved here):
 transform_broadcaster_dir = get_package_share_directory("transform_broadcaster")
 environment_estimator_dir = get_package_share_directory("environment_estimator")
-usv_controller_dir = get_package_share_directory("usv_controller")
 usv_object_detector_dir = get_package_share_directory("usv_object_detector")
 
 # transform broadcaster####################################################################################################################
@@ -65,56 +64,9 @@ environment_estimator_launch_list = [
 ]
 
 
-# USV controller launch list############################################################################################################
-
-yaw_kp_arg = DeclareLaunchArgument("yaw_kp", default_value="0.9",description="Yaw angular velocity controller Kp")
-yaw_ki_arg = DeclareLaunchArgument("yaw_ki", default_value="0.05",description="Yaw angular velocity controller Ki")
-yaw_kd_arg = DeclareLaunchArgument("yaw_kd", default_value="0.0",description="Yaw angular velocity controller Kd")
-
-lin_kp_arg = DeclareLaunchArgument("lin_kp", default_value="1.2",description="Linear velocity controller Kp")
-lin_ki_arg = DeclareLaunchArgument("lin_ki", default_value="0.1",description="Linear velocity controller Ki")
-lin_kd_arg = DeclareLaunchArgument("lin_kd", default_value="0.05",description="Linear velocity controller Kd")
-
-max_linear_velocity_arg = DeclareLaunchArgument("max_linear_velocity", default_value="5.0",description="Maximum linear velocity [m/s]")
-max_angular_velocity_arg = DeclareLaunchArgument("max_angular_velocity",default_value="2.0",description="Maximum angular velocity [rad/s]")
-lookahead_distance_arg = DeclareLaunchArgument("lookahead_distance", default_value="0.5", description="Distance on path too navigate towards [m]")
-heading_reference_filter_arg = DeclareLaunchArgument("heading_reference_filter", default_value="0.5", description="Distance on path too navigate towards [m]")
-initial_heading_arg = DeclareLaunchArgument("initial_heading", default_value="0.0", description="Initial heading in degrees (0=North, 90=East, 180=South, 270=West)")
-
-usv_controller_launch = IncludeLaunchDescription(
-    PythonLaunchDescriptionSource(
-        PathJoinSubstitution([usv_controller_dir, "launch/usv_controller.launch.py"])
-    ),
-    launch_arguments={
-        "yaw_kp": LaunchConfiguration("yaw_kp"),
-        "yaw_ki": LaunchConfiguration("yaw_ki"),
-        "yaw_kd": LaunchConfiguration("yaw_kd"),
-        "lin_kp": LaunchConfiguration("lin_kp"),
-        "lin_ki": LaunchConfiguration("lin_ki"),
-        "lin_kd": LaunchConfiguration("lin_kd"),
-        "max_linear_velocity": LaunchConfiguration("max_linear_velocity"),
-        "max_angular_velocity": LaunchConfiguration("max_angular_velocity"),
-        "lookahead_distance": LaunchConfiguration("lookahead_distance"),
-        "heading_reference_filter" : LaunchConfiguration("heading_reference_filter"),
-        "initial_heading": LaunchConfiguration("initial_heading")
-    }.items()
-)
-
-usv_controller_launch_list = [
-    initial_heading_arg,
-    yaw_kp_arg,
-    yaw_ki_arg,
-    yaw_kd_arg,
-    lin_kp_arg,
-    lin_ki_arg,
-    lin_kd_arg,
-    max_linear_velocity_arg,
-    max_angular_velocity_arg,
-    lookahead_distance_arg,
-    heading_reference_filter_arg,
-    usv_controller_launch
-]
-###################################################################################################
+# NOTE: usv_controller runs on the OPERATOR PC (not the boat) — its launch lives
+# in the usv_controller package and is started there, alongside light_state_publisher
+# and the joystick teleop.
 
 ## Object detector
 
@@ -181,11 +133,11 @@ px4_dds_launch_list = [
 # alongside the DDS bridge (different port). OFF by default — enable with
 #   ros2 launch ... mavlink_router:=true
 mavlink_router_arg = DeclareLaunchArgument(
-    "mavlink_router", default_value="false",
-    description="Bridge Cube USB MAVLink to QGC over UDP (setup/debug only)")
+    "mavlink_router", default_value="true",
+    description="Bridge Cube USB MAVLink to QGC over UDP. Disable with mavlink_router:=false")
 mavlink_router_endpoint_arg = DeclareLaunchArgument(
-    "mavlink_router_endpoint", default_value="127.0.0.1:14550",
-    description="QGC UDP endpoint ip:port (use the PC's IP if QGC runs elsewhere)")
+    "mavlink_router_endpoint", default_value="192.168.2.42:14550",
+    description="QGC UDP endpoint ip:port (the operator PC running QGC)")
 mavlink_router_dev_arg = DeclareLaunchArgument(
     "mavlink_router_dev", default_value="/dev/ttyACM0",
     description="Cube USB serial device for MAVLink")
@@ -207,59 +159,52 @@ mavlink_router_launch_list = [
 ]
 #######################################################
 
-# Joystick teleop (manual override) ########################################
-manual_control_arg = DeclareLaunchArgument(
-    "manual_control", default_value="false",
-    description="Launch the joystick teleop here. Default false: run usv_teleop on the "
-                "operator PC instead (only ONE machine may publish selene/manual/* + selene/arm)")
+# NOTE: the joystick teleop (usv_teleop usv_teleop.launch.py) runs on the
+# OPERATOR PC where the Xbox controller is plugged in — not on the boat.
 
-usv_teleop_dir = get_package_share_directory("usv_teleop")
-usv_teleop_launch = IncludeLaunchDescription(
-    PythonLaunchDescriptionSource(
-        PathJoinSubstitution([usv_teleop_dir, "launch/usv_teleop.launch.py"])
-    ),
-    condition=IfCondition(LaunchConfiguration("manual_control"))
-)
-
-usv_teleop_launch_list = [
-    manual_control_arg,
-    usv_teleop_launch,
-]
-#######################################################
-
-# Status lights state PUBLISHER (controller side) ##########################
-# Computes the relay+light state (armed/manual/auto from PX4 + manual topics)
-# and publishes selene/light_state. This runs WITH the controller (the PC). The
-# boat-side light_relay_driver (usv_teleop relay_driver.launch.py, run on the
-# boat) turns that topic into UDP for the Pi. See pi_lights/ for the Pi side.
+# Status lights / relay DRIVER (boat side) #################################
+# Subscribes selene/light_state (published by light_state_publisher on the PC,
+# next to the controller) and drives the Raspberry Pi over LOCAL UDP. Runs on
+# the boat so the Pi/relay is robust to the radio link. See pi_lights/.
 status_lights_arg = DeclareLaunchArgument(
     "status_lights", default_value="true",
-    description="Publish selene/light_state (boat runs light_relay_driver to reach the Pi)")
+    description="Run the boat-side light/relay driver (selene/light_state -> Pi UDP)")
+pi_ip_arg = DeclareLaunchArgument(
+    "pi_ip", default_value="192.168.2.5",
+    description="Raspberry Pi address on the boat LAN")
 
-light_state_publisher_node = Node(
+light_relay_driver_node = Node(
     package="usv_teleop",
-    executable="light_state_publisher",
-    name="light_state_publisher",
+    executable="light_relay_driver",
+    name="light_relay_driver",
     output="screen",
+    parameters=[{"pi_ip": LaunchConfiguration("pi_ip")}],
     condition=IfCondition(LaunchConfiguration("status_lights")),
 )
 
 status_lights_launch_list = [
     status_lights_arg,
-    light_state_publisher_node,
+    pi_ip_arg,
+    light_relay_driver_node,
 ]
 #######################################################
 
 ###Combine everything
+#
+# THIS LAUNCH = THE BOAT (companion + Cube + Pi). It runs only what must be on
+# the boat: the uXRCE-DDS agent (Cube link), mavlink-router (Cube USB -> QGC),
+# the transform broadcaster, perception, and the light/relay driver to the Pi.
+#
+# The OPERATOR PC runs separately (NOT here): usv_controller, the joystick
+# teleop (usv_teleop usv_teleop.launch.py), and light_state_publisher. They
+# reach the boat over DDS (same ROS_DOMAIN_ID).
 
 launch_list = (
     transform_broadcaster_launch_list +
     environment_estimator_launch_list +
-    usv_controller_launch_list +
     px4_dds_launch_list +
-    usv_teleop_launch_list +
-    status_lights_launch_list +
-    mavlink_router_launch_list #+
+    mavlink_router_launch_list +
+    status_lights_launch_list      # boat-side light/relay driver
     #usv_object_detector_launch_list
 )
 
