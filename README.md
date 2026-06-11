@@ -59,4 +59,6 @@ ros2 launch usv_bringup usv_bringup.launch.py simulator_mode:=<true/false>
 
 The **"simulator_mode"** parameter is used to distinguish between the simulated system and the actual system.
 
+GNSS Config:
+![GNSS Receiver config](gnss_settings.png)
 

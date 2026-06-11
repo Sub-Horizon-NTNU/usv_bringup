@@ -8,10 +8,11 @@ from launch.actions import ExecuteProcess
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 
-### Nodes (BOAT side only — usv_controller runs on the PC, not resolved here):
 transform_broadcaster_dir = get_package_share_directory("transform_broadcaster")
 environment_estimator_dir = get_package_share_directory("environment_estimator")
 usv_object_detector_dir = get_package_share_directory("usv_object_detector")
+usv_teleop_dir = get_package_share_directory("usv_teleop")
+usv_controller_dir = get_package_share_directory("usv_controller")
 
 # transform broadcaster####################################################################################################################
 camera_offset_x_arg = DeclareLaunchArgument('camera_offset_x',default_value='0.0',description='camera coordinates (left) relative to USV NED')
@@ -63,10 +64,25 @@ environment_estimator_launch_list = [
     environment_estimator_launch
 ]
 
+initial_heading_arg = DeclareLaunchArgument(
+    "initial_heading",
+    default_value="0.0",
+    description="Initial heading when booting up"
+)
 
-# NOTE: usv_controller runs on the OPERATOR PC (not the boat) — its launch lives
-# in the usv_controller package and is started there, alongside light_state_publisher
-# and the joystick teleop.
+usv_controller_launch = IncludeLaunchDescription(
+    PythonLaunchDescriptionSource(
+        PathJoinSubstitution([usv_controller_dir, "launch/usv_controller.launch.py"])
+    ),
+    launch_arguments={
+        "initial_heading": LaunchConfiguration("initial_heading")
+    }.items(),
+)
+
+usv_controller_launch_list = [
+    initial_heading_arg,
+    usv_controller_launch
+]
 
 ## Object detector
 
@@ -82,7 +98,6 @@ usv_object_detector_launch = IncludeLaunchDescription(
         "model":LaunchConfiguration("model")
     }.items(),
     condition=UnlessCondition(LaunchConfiguration("simulator_mode"))
-
 )
 
 usv_object_detector_launch_list = [
@@ -125,6 +140,14 @@ px4_dds_launch_list = [
     px4_serial_baud_arg,
     micro_xrce_agent,
 ]
+
+micro_ros_agent = ExecuteProcess(
+    cmd=["ros2", "run", "micro_ros_agent", "micro_ros_agent", 
+         "serial", "-D", "/dev/ttyUSB0", "-b", "921600"],
+    output="screen",
+    shell=False,
+    condition=UnlessCondition(LaunchConfiguration("simulator_mode"))
+)
 #######################################################
 
 # Optional MAVLink bridge for QGC (setup/debug only) #######################
@@ -145,7 +168,7 @@ mavlink_router_dev_arg = DeclareLaunchArgument(
 mavlink_routerd = ExecuteProcess(
     cmd=["mavlink-routerd", "-e",
          LaunchConfiguration("mavlink_router_endpoint"),
-         LaunchConfiguration("mavlink_router_dev")],
+         LaunchConfiguration("mavlink_router_dev"), "-e", "192.168.2.43:14550"],
     output="screen",
     shell=True,
     condition=IfCondition(LaunchConfiguration("mavlink_router")),
@@ -158,14 +181,7 @@ mavlink_router_launch_list = [
     mavlink_routerd,
 ]
 #######################################################
-
-# NOTE: the joystick teleop (usv_teleop usv_teleop.launch.py) runs on the
-# OPERATOR PC where the Xbox controller is plugged in — not on the boat.
-
-# Status lights / relay DRIVER (boat side) #################################
-# Subscribes selene/light_state (published by light_state_publisher on the PC,
-# next to the controller) and drives the Raspberry Pi over LOCAL UDP. Runs on
-# the boat so the Pi/relay is robust to the radio link. See pi_lights/.
+#lights and relays
 status_lights_arg = DeclareLaunchArgument(
     "status_lights", default_value="true",
     description="Run the boat-side light/relay driver (selene/light_state -> Pi UDP)")
@@ -187,24 +203,45 @@ status_lights_launch_list = [
     pi_ip_arg,
     light_relay_driver_node,
 ]
+
+light_state_sender_launch = IncludeLaunchDescription(
+    PythonLaunchDescriptionSource(
+        PathJoinSubstitution([usv_teleop_dir, "launch/light_state_sender.launch.py"])
+    ),
+    launch_arguments={
+        "pi_ip": "192.168.2.5",
+        "udp_port": "5005"
+    }.items(),
+    condition=UnlessCondition(LaunchConfiguration("simulator_mode"))
+)
+light_state_sender_launch_list = [
+    light_state_sender_launch
+]
+
+light_state_publisher_launch = IncludeLaunchDescription(
+    PythonLaunchDescriptionSource(
+        PathJoinSubstitution([usv_teleop_dir, "launch/light_state_publisher.launch.py"])
+    ),
+    condition=UnlessCondition(LaunchConfiguration("simulator_mode"))
+)
+light_state_publisher_launch_list = [
+    light_state_publisher_launch
+]
+
 #######################################################
 
 ###Combine everything
-#
-# THIS LAUNCH = THE BOAT (companion + Cube + Pi). It runs only what must be on
-# the boat: the uXRCE-DDS agent (Cube link), mavlink-router (Cube USB -> QGC),
-# the transform broadcaster, perception, and the light/relay driver to the Pi.
-#
-# The OPERATOR PC runs separately (NOT here): usv_controller, the joystick
-# teleop (usv_teleop usv_teleop.launch.py), and light_state_publisher. They
-# reach the boat over DDS (same ROS_DOMAIN_ID).
 
 launch_list = (
+    [micro_ros_agent] +
     transform_broadcaster_launch_list +
     environment_estimator_launch_list +
     px4_dds_launch_list +
     mavlink_router_launch_list +
-    status_lights_launch_list      # boat-side light/relay driver
+    status_lights_launch_list +
+    light_state_sender_launch_list + 
+    light_state_publisher_launch_list + 
+    usv_controller_launch_list
     #usv_object_detector_launch_list
 )
 
