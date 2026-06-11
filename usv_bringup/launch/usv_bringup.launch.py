@@ -177,8 +177,9 @@ px4_dds_launch_list = [
 
 # Joystick teleop (manual override) ########################################
 manual_control_arg = DeclareLaunchArgument(
-    "manual_control", default_value="true",
-    description="Launch the joystick teleop for manual override of the USV")
+    "manual_control", default_value="false",
+    description="Launch the joystick teleop here. Default false: run usv_teleop on the "
+                "operator PC instead (only ONE machine may publish selene/manual/* + selene/arm)")
 
 usv_teleop_dir = get_package_share_directory("usv_teleop")
 usv_teleop_launch = IncludeLaunchDescription(
