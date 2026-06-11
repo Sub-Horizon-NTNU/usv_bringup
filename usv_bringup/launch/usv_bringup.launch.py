@@ -6,6 +6,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.conditions import UnlessCondition, IfCondition
 from launch.actions import ExecuteProcess
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.actions import Node
 
 ### Nodes:
 transform_broadcaster_dir = get_package_share_directory("transform_broadcaster")
@@ -193,6 +194,32 @@ usv_teleop_launch_list = [
 ]
 #######################################################
 
+# Status lights + relay (Raspberry Pi over UDP) ############################
+# Sends boat state (armed/manual/auto from PX4 + manual topics) to the Pi,
+# which drives the relay + red/amber/green GPIO. See pi_lights/ for the Pi side.
+status_lights_arg = DeclareLaunchArgument(
+    "status_lights", default_value="true",
+    description="Send relay/light state to the Raspberry Pi")
+pi_ip_arg = DeclareLaunchArgument(
+    "pi_ip", default_value="192.168.2.5",
+    description="Raspberry Pi address for the status-light UDP packets")
+
+light_state_sender_node = Node(
+    package="usv_teleop",
+    executable="light_state_sender",
+    name="light_state_sender",
+    output="screen",
+    parameters=[{"pi_ip": LaunchConfiguration("pi_ip")}],
+    condition=IfCondition(LaunchConfiguration("status_lights")),
+)
+
+status_lights_launch_list = [
+    status_lights_arg,
+    pi_ip_arg,
+    light_state_sender_node,
+]
+#######################################################
+
 ###Combine everything
 
 launch_list = (
@@ -200,7 +227,8 @@ launch_list = (
     environment_estimator_launch_list +
     usv_controller_launch_list +
     px4_dds_launch_list +
-    usv_teleop_launch_list #+
+    usv_teleop_launch_list +
+    status_lights_launch_list #+
     #usv_object_detector_launch_list
 )
 
