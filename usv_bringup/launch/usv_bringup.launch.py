@@ -175,6 +175,38 @@ px4_dds_launch_list = [
 ]
 #######################################################
 
+# Optional MAVLink bridge for QGC (setup/debug only) #######################
+# Bridges the Cube's USB MAVLink (/dev/ttyACM0) to QGroundControl over UDP, so
+# you can configure/arm/calibrate without plugging a laptop into the boat. Runs
+# alongside the DDS bridge (different port). OFF by default — enable with
+#   ros2 launch ... mavlink_router:=true
+mavlink_router_arg = DeclareLaunchArgument(
+    "mavlink_router", default_value="false",
+    description="Bridge Cube USB MAVLink to QGC over UDP (setup/debug only)")
+mavlink_router_endpoint_arg = DeclareLaunchArgument(
+    "mavlink_router_endpoint", default_value="127.0.0.1:14550",
+    description="QGC UDP endpoint ip:port (use the PC's IP if QGC runs elsewhere)")
+mavlink_router_dev_arg = DeclareLaunchArgument(
+    "mavlink_router_dev", default_value="/dev/ttyACM0",
+    description="Cube USB serial device for MAVLink")
+
+mavlink_routerd = ExecuteProcess(
+    cmd=["mavlink-routerd", "-e",
+         LaunchConfiguration("mavlink_router_endpoint"),
+         LaunchConfiguration("mavlink_router_dev")],
+    output="screen",
+    shell=True,
+    condition=IfCondition(LaunchConfiguration("mavlink_router")),
+)
+
+mavlink_router_launch_list = [
+    mavlink_router_arg,
+    mavlink_router_endpoint_arg,
+    mavlink_router_dev_arg,
+    mavlink_routerd,
+]
+#######################################################
+
 # Joystick teleop (manual override) ########################################
 manual_control_arg = DeclareLaunchArgument(
     "manual_control", default_value="false",
@@ -229,7 +261,8 @@ launch_list = (
     usv_controller_launch_list +
     px4_dds_launch_list +
     usv_teleop_launch_list +
-    status_lights_launch_list #+
+    status_lights_launch_list +
+    mavlink_router_launch_list #+
     #usv_object_detector_launch_list
 )
 
