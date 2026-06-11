@@ -1,0 +1,164 @@
+# Selene PX4 v1.16 parameters — CubeOrange+ (cubepilot_cubeorangeplus)
+#
+# Scope of THIS file: sensors + EKF2 + Septentrio dual-antenna GPS + the
+# uXRCE-DDS bridge — everything needed to bring up IMU/GPS and see /sensors/*
+# in ROS 2. Offboard / actuator / RC params land on "actuator day" (slice 26),
+# NOT here, so this file stays a clean GPS-day artifact.
+#
+# Load in QGroundControl: Vehicle Setup > Parameters > Tools > Load from file.
+# Or paste the console form: `scripts/flash_px4.sh params`.
+#
+# Every value below was verified against the v1.16.0 source in
+# external/PX4-Autopilot (param names + enum/bit values), NOT from memory.
+# Param types: 6 = INT32, 9 = REAL32 (FLOAT).
+#
+# Stack and Vehicle: PX4
+#
+# MAV ID	COMPONENT ID	PARAM NAME	VALUE	(TYPE)
+
+# --- Septentrio GPS driver (dedicated, NOT the generic `gps` driver) ----------
+# The Mosaic-H (ArduSimple simpleRTK3B-heading) is a single dual-antenna
+# receiver: one SBF stream carries position AND heading (AttEuler block). PX4
+# v1.16 ships a dedicated Septentrio driver (CONFIG_DRIVERS_GNSS_SEPTENTRIO=y on
+# this board) whose params are SEP_*, not GPS_*. The generic `gps` driver is
+# ALSO compiled and ALSO defaults to the GPS1 port, so disable it there too
+# (GPS1 is unused on this harness — the receiver is wired to TELEM1).
+1	1	GPS_1_CONFIG	0	6
+# Septentrio primary receiver on the TELEM 1 port (serial index 101 = /dev/ttyS1).
+# The Mosaic-H is physically cabled to TELEM1 on this boat, NOT GPS1. TELEM1 is
+# MAVLink instance 0's default port, so MAV_0_CONFIG is freed below.
+1	1	SEP_PORT1_CFG	101	6
+# No secondary receiver — single Mosaic-H gives heading on its own stream.
+1	1	SEP_PORT2_CFG	0	6
+# Serial baud — MUST match what the receiver is already configured to output.
+# 115200 is the documented Selene value; change if your receiver differs.
+1	1	SER_TEL1_BAUD	115200	6
+# Free TELEM1 for the Septentrio: MAVLink instance 0 defaults to TELEM1 (101).
+1	1	MAV_0_CONFIG	0	6
+# Dual-antenna heading/yaw offset [deg] — was set in the receiver web UI before
+# (PLAN.md / thesis era). Antenna baseline orientation relative to the bow.
+1	1	SEP_YAW_OFFS	-31.14	9
+# Pitch offset [deg] for the antenna baseline (0 = antennas level).
+1	1	SEP_PITCH_OFFS	0	9
+# Let PX4 set up the SBF output streams (AttEuler/PVTGeodetic/DOP/...) it needs.
+# Keep ON even though the receiver is pre-configured, so the exact blocks +
+# rates PX4 parses are guaranteed. Needs bidirectional serial to the receiver.
+# Set to 0 only if the receiver is locked to a fixed stream you manage by hand.
+1	1	SEP_AUTO_CONFIG	1	6
+
+# --- EKF2: GPS-primary, magnetometer OFF -------------------------------------
+# GNSS aiding bitmask: bit0 lon/lat + bit1 alt + bit2 3D vel + bit3 dual-antenna
+# heading = 15. Bit3 is what feeds yaw from the Mosaic-H instead of a compass.
+1	1	EKF2_GPS_CTRL	15	6
+# Magnetometer fusion type: 5 = None. We do NOT use a compass; yaw comes from
+# the dual-antenna GPS heading. (enum: 0 Auto, 1 Mag-heading, 5 None, 6 Init)
+1	1	EKF2_MAG_TYPE	5	6
+# Skip the mag consistency preflight check (no mag in the loop).
+1	1	EKF2_MAG_CHECK	0	6
+# Height reference = GPS (1). A USV has no useful baro-vs-ground datum on water;
+# GPS height keeps the local NED origin stable. (enum: 0 Baro, 1 GPS, ...)
+1	1	EKF2_HGT_REF	1	6
+
+# --- uXRCE-DDS bridge (PX4 <-> ROS 2) ----------------------------------------
+# Transport port. 102 = TELEM2 (the documented Selene path; connect the Cube's
+# TELEM2 to the PC/Jetson via an FTDI USB-serial adapter and run
+#   MicroXRCEAgent serial --dev /dev/ttyUSB0 -b 921600
+# ALTERNATIVE (Cube's native USB, no adapter): leave the client off a UART and
+# run the agent against /dev/ttyACM0 — see scripts/flash_px4.sh / usv_real
+# launch. Pick the one that matches your cabling before flashing.
+1	1	UXRCE_DDS_CFG	102	6
+# TELEM2 baud — match the MicroXRCEAgent -b argument.
+1	1	SER_TEL2_BAUD	921600	6
+# Free TELEM2 for uXRCE: make sure no MAVLink instance also claims it.
+1	1	MAV_1_CONFIG	0	6
+
+# --- Actuator day: outputs + relay/lights + offboard arming ------------------
+# NOTE: function enum values + reversible handling are the standard PX4 v1.16
+# values but were NOT re-verified against external/PX4-Autopilot here — treat
+# anything marked VERIFY as provisional and check on the bench, props OFF.
+# OutputFunction enum: Motor1..4 = 101..104, Servo1..8 = 201..208.
+#
+# Pin map (from old_ardupilot.param wiring + AUX3-6 lights/relay):
+#   MAIN 1,3,5,7 = thrusters  -> Motor1..4  (ActuatorMotors.control[0..3])
+#   MAIN 2,4,6,8 = azimuth    -> Servo1..4  (ActuatorServos.control[0..3])
+#   AUX5 amber=Servo5[4]  AUX6 green=Servo6[5]  AUX3 relay=Servo7[6]  AUX4 red=Servo8[7]
+
+# MAIN outputs (CubeOrange IO rail, PWM_MAIN_*) -------------------------------
+1	1	PWM_MAIN_FUNC1	101	6
+1	1	PWM_MAIN_FUNC2	201	6
+1	1	PWM_MAIN_FUNC3	102	6
+1	1	PWM_MAIN_FUNC4	202	6
+1	1	PWM_MAIN_FUNC5	103	6
+1	1	PWM_MAIN_FUNC6	203	6
+1	1	PWM_MAIN_FUNC7	104	6
+1	1	PWM_MAIN_FUNC8	204	6
+# Thruster ESCs: bidirectional, 1100-1900 around 1500 neutral.
+1	1	PWM_MAIN_MIN1	1100	6
+1	1	PWM_MAIN_MAX1	1900	6
+1	1	PWM_MAIN_DIS1	1500	6
+1	1	PWM_MAIN_MIN3	1100	6
+1	1	PWM_MAIN_MAX3	1900	6
+1	1	PWM_MAIN_DIS3	1500	6
+1	1	PWM_MAIN_MIN5	1100	6
+1	1	PWM_MAIN_MAX5	1900	6
+1	1	PWM_MAIN_DIS5	1500	6
+1	1	PWM_MAIN_MIN7	1100	6
+1	1	PWM_MAIN_MAX7	1900	6
+1	1	PWM_MAIN_DIS7	1500	6
+# Azimuth servos: 500-2500, 1500 home (matches ArduPilot SERVO2/4/6/8 travel).
+1	1	PWM_MAIN_MIN2	500	6
+1	1	PWM_MAIN_MAX2	2500	6
+1	1	PWM_MAIN_DIS2	1500	6
+1	1	PWM_MAIN_MIN4	500	6
+1	1	PWM_MAIN_MAX4	2500	6
+1	1	PWM_MAIN_DIS4	1500	6
+1	1	PWM_MAIN_MIN6	500	6
+1	1	PWM_MAIN_MAX6	2500	6
+1	1	PWM_MAIN_DIS6	1500	6
+1	1	PWM_MAIN_MIN8	500	6
+1	1	PWM_MAIN_MAX8	2500	6
+1	1	PWM_MAIN_DIS8	1500	6
+# VERIFY: bidirectional thrust. CA_R_REV bitmask marks Motor1..4 reversible so
+# ActuatorMotors [-1,1] maps full reverse..forward (else negatives clip to 0 and
+# sway/yaw break). 0b1111 = 15. Confirm this is honored in direct_actuator mode.
+1	1	CA_R_REV	15	6
+
+# AUX outputs (CubeOrange FMU rail, PWM_AUX_*) -------------------------------
+# Frame rate: lights are wired DIRECTLY to the PWM pins, so "off" = no pulse
+# (MIN/DIS=0 -> pin idle low -> LED dark) and "on" needs high duty or it
+# flickers. 400Hz: a 2200us pulse in a 2500us frame ~= 88% duty -> bright/steady
+# to the eye. The relay's Arduino pulseIn still reads fine at 400Hz (2.5ms frame
+# << 25ms timeout). VERIFY exact PWM_AUX_TIM* group names against v1.16 source.
+1	1	PWM_AUX_TIM0	400	6
+1	1	PWM_AUX_TIM1	400	6
+1	1	PWM_AUX_FUNC1	0	6
+1	1	PWM_AUX_FUNC2	0	6
+1	1	PWM_AUX_FUNC3	207	6
+1	1	PWM_AUX_FUNC4	208	6
+1	1	PWM_AUX_FUNC5	205	6
+1	1	PWM_AUX_FUNC6	206	6
+# AUX range read by the Arduino (pulseIn -> threshold 1500us -> digitalWrite).
+# OFF = 1000 (clearly < 1500), ON = 2200 (max margin > 1500). Past the threshold
+# the Arduino output is binary, so a higher pulse only buys decision margin, not
+# more drive. VERIFY 2200 isn't clamped by the PX4 param max (drop to ~2150 if so).
+1	1	PWM_AUX_MIN3	500	6
+1	1	PWM_AUX_MAX3	2200	6
+1	1	PWM_AUX_MIN4	0	6
+1	1	PWM_AUX_MAX4	2200	6
+1	1	PWM_AUX_MIN5	0	6
+1	1	PWM_AUX_MAX5	2200	6
+1	1	PWM_AUX_MIN6	0	6
+1	1	PWM_AUX_MAX6	2200	6
+# Disarmed/failsafe values (offboard is ignored while disarmed): relay OPEN,
+# red ON, amber/green off. This is what makes "red when unarmed" work.
+# (set DIS3=0 instead of 1000 if you want a hard no-pulse relay-open failsafe).
+1	1	PWM_AUX_DIS3	1000	6
+1	1	PWM_AUX_DIS4	2200	6
+1	1	PWM_AUX_DIS5	0	6
+1	1	PWM_AUX_DIS6	0	6
+
+# Offboard arming (bench): allow OFFBOARD without RC and arming without GPS.
+# COM_RCL_EXCEPT bit2 (=4) = offboard exempt from RC-loss. Remove COM_ARM_WO_GPS
+# (set 0) once GPS/EKF is trusted for on-water runs.
+1	1	COM_RCL_EXCEPT	4	6
+1	1	COM_ARM_WO_GPS	1	6

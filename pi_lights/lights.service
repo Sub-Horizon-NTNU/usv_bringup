@@ -1,0 +1,13 @@
+[Unit]
+Description=Selene relay + status lights (UDP -> GPIO)
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /home/sub/pi_lights/lights.py
+Restart=always
+RestartSec=1
+# GPIO access: simplest is root. (Or run as a user in the 'gpio' group.)
+User=root
+
+[Install]
+WantedBy=multi-user.target
