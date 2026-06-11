@@ -227,29 +227,26 @@ usv_teleop_launch_list = [
 ]
 #######################################################
 
-# Status lights + relay (Raspberry Pi over UDP) ############################
-# Sends boat state (armed/manual/auto from PX4 + manual topics) to the Pi,
-# which drives the relay + red/amber/green GPIO. See pi_lights/ for the Pi side.
+# Status lights state PUBLISHER (controller side) ##########################
+# Computes the relay+light state (armed/manual/auto from PX4 + manual topics)
+# and publishes selene/light_state. This runs WITH the controller (the PC). The
+# boat-side light_relay_driver (usv_teleop relay_driver.launch.py, run on the
+# boat) turns that topic into UDP for the Pi. See pi_lights/ for the Pi side.
 status_lights_arg = DeclareLaunchArgument(
     "status_lights", default_value="true",
-    description="Send relay/light state to the Raspberry Pi")
-pi_ip_arg = DeclareLaunchArgument(
-    "pi_ip", default_value="192.168.2.5",
-    description="Raspberry Pi address for the status-light UDP packets")
+    description="Publish selene/light_state (boat runs light_relay_driver to reach the Pi)")
 
-light_state_sender_node = Node(
+light_state_publisher_node = Node(
     package="usv_teleop",
-    executable="light_state_sender",
-    name="light_state_sender",
+    executable="light_state_publisher",
+    name="light_state_publisher",
     output="screen",
-    parameters=[{"pi_ip": LaunchConfiguration("pi_ip")}],
     condition=IfCondition(LaunchConfiguration("status_lights")),
 )
 
 status_lights_launch_list = [
     status_lights_arg,
-    pi_ip_arg,
-    light_state_sender_node,
+    light_state_publisher_node,
 ]
 #######################################################
 
